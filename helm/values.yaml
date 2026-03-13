@@ -1,0 +1,93 @@
+# Grafana Helm values
+# https://artifacthub.io/packages/helm/grafana/grafana
+
+# Pin chart version or leave empty for latest
+chartVersion: ""  # e.g. "8.10.0"
+
+# -- Admin credentials
+# Set adminPassword here or leave empty to use the auto-generated secret
+adminUser: admin
+adminPassword: ""  # <-- set a strong password or leave empty for auto-generated
+
+# -- Replica count
+replicas: 1
+
+# -- Persistent storage
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClassName: ""  # leave empty for cluster default
+
+# -- Resources
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# -- Ingress (Traefik + cert-manager)
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - grafana.yourdomain.com          # <-- change this
+  tls:
+    - secretName: grafana-tls
+      hosts:
+        - grafana.yourdomain.com      # <-- change this
+
+# -- Datasources (auto-provisioned)
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-server.monitoring.svc.cluster.local  # adjust if needed
+        access: proxy
+        isDefault: true
+
+# -- Dashboard providers (loads from configmaps)
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        folder: ""
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+# -- Dashboards to auto-download from Grafana.com
+dashboards:
+  default:
+    cert-manager:
+      gnetId: 20340     # cert-manager community dashboard
+      revision: 1
+      datasource: Prometheus
+    kubernetes-cluster:
+      gnetId: 7249      # Kubernetes cluster overview
+      revision: 1
+      datasource: Prometheus
+    node-exporter:
+      gnetId: 1860      # Node exporter full
+      revision: 37
+      datasource: Prometheus
+
+# -- Grafana config overrides
+grafana.ini:
+  server:
+    root_url: https://grafana.yourdomain.com  # <-- change this
+  analytics:
+    reporting_enabled: false
+    check_for_updates: true
+  log:
+    mode: console
+    level: info
